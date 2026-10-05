@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_key: str = ""
+    # Optional legacy HS256 secret for local JWT verification. Modern Supabase
+    # projects can leave this empty and use Supabase Auth token verification.
+    supabase_jwt_secret: str = ""
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"

@@ -27,10 +27,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.2.0",
+    version="0.4.0",
     description=(
-        "Production-oriented backend foundation for the AI Knowledge Chatbot. "
-        "AI, retrieval, persistence, and authentication integrations are planned."
+        "AI Knowledge Chatbot backend with local Ollama generation, BGE-M3 "
+        "embeddings, ChromaDB retrieval, and document indexing."
     ),
     lifespan=lifespan,
 )

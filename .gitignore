@@ -57,6 +57,7 @@ logs/
 *.sqlite-journal
 *.db
 chroma_data/
+chroma_db/
 .chroma/
 
 # Keep local knowledge documents out of source control

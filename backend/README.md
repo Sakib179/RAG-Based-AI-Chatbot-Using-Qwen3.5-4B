@@ -1,11 +1,14 @@
-# FastAPI backend
+# FastAPI backend, local RAG, and Supabase application layer
 
-This backend is the infrastructure foundation for AI-Knowledge-Chatbot. It
-currently provides typed settings, application logging, CORS configuration,
-central API routing, safe global exception handling, and a health endpoint.
+This backend provides the production foundation for AI-Knowledge-Chatbot. It
+uses Ollama for Qwen3.5-4B, LlamaIndex adapters for local generation and
+BGE-M3 embeddings, persistent ChromaDB for knowledge vectors, and Supabase for
+authenticated application data.
 
-AI models, RAG, LlamaIndex, ChromaDB, Ollama, Supabase, authentication,
-knowledge ingestion, and conversation logic are intentionally not implemented.
+The implementation does not use OpenAI or require `OPENAI_API_KEY`. The
+LlamaIndex meta-package is intentionally omitted because it installs OpenAI
+integrations; the project installs `llama-index-core` and only local Ollama,
+HuggingFace, and Chroma integrations.
 
 ## Architecture
 
@@ -13,103 +16,145 @@ knowledge ingestion, and conversation logic are intentionally not implemented.
 backend/
 ├── app/
 │   ├── api/
-│   │   ├── health.py       # Health route
+│   │   ├── auth.py         # Supabase registration, login, and /me
+│   │   ├── chat.py         # Authenticated grounded chat and AI health
+│   │   ├── documents.py    # Authenticated upload and indexing
+│   │   ├── health.py       # Basic backend health route
 │   │   └── router.py       # Central API router
 │   ├── core/
-│   │   ├── config.py       # Pydantic Settings configuration
+│   │   ├── config.py       # Typed environment settings
 │   │   └── logging.py      # Console and file logging
-│   ├── database/           # Reserved for future persistence infrastructure
+│   ├── database/
+│   │   ├── models.py       # Typed application records
+│   │   ├── repository.py   # Supabase data access
+│   │   └── supabase_client.py
 │   ├── middleware/
-│   │   └── exceptions.py   # Safe unexpected-error response
-│   ├── models/             # Reserved for future domain models
-│   ├── schemas/            # Reserved for future API schemas
-│   ├── services/           # Reserved for future application services
-│   ├── utils/              # Reserved for future shared utilities
+│   │   └── exceptions.py   # Safe authentication and error responses
+│   ├── services/
+│   │   ├── auth/
+│   │   │   ├── auth_dependency.py
+│   │   │   └── auth_service.py
+│   │   ├── ai/             # LLM, embeddings, prompts, RAG, retrieval
+│   │   ├── ingestion/      # Loaders, OCR, chunking, indexing
+│   │   └── vector/         # Persistent ChromaDB adapter
 │   └── main.py             # FastAPI application assembly
 ├── tests/
-│   └── test_health.py      # Health endpoint test
+├── chroma_db/              # Created automatically; ignored by Git
 ├── logs/                   # Created automatically at runtime
 ├── .env.example
 └── requirements.txt
 ```
 
-Each package contains an `__init__.py` marker. Empty extension packages are
-kept ready for later features without adding placeholder business logic.
+Uploaded source files are stored in the project-level `../knowledge_base/`
+directory; vectors are stored in `backend/chroma_db/`. Supabase PostgreSQL
+stores profiles, conversations, messages, request logs, and document metadata
+only. It does not store embeddings. See `../docs/database_schema.md` and
+`../supabase/migrations/001_initial_schema.sql` for the schema and RLS setup.
 
-## Configuration
+## AI request flow
 
-`app/core/config.py` uses Pydantic Settings to load typed values from process
-environment variables and a local `.env` file when present. The settings object
-is cached as a process-wide singleton. Copy `.env.example` to `.env` only for
-local configuration; keep real credentials out of Git.
+```text
+Document → loader/OCR → recursive chunks → BGE-M3 (CPU)
+         → ChromaDB → retriever → strict context prompt → Qwen3.5 via Ollama
+         → grounded answer and source metadata
+```
 
-The application can start with blank external-service settings because no
-external service is connected in this phase. Ollama and Supabase values are
-configuration placeholders only.
+Documents are indexed independently. Adding a document creates or updates its
+vector records; no model retraining is required. If retrieval finds no relevant
+chunks, the service returns `I could not find this information in the knowledge
+base.` without calling Qwen.
 
-## Logging
+## Installation with Conda
 
-The application configures console and file handlers during startup. Logs are
-written to `backend/logs/app.log`, which is created automatically and ignored by
-Git. Each record includes a timestamp, level, module name, and message. Debug
-logging is enabled only when `DEBUG=True` is supplied through configuration.
-
-## Installation
-
-From the `backend` directory, use your existing Conda environment with Python
-3.11 or newer:
+Use the existing `cenv` environment with Python 3.11 or newer:
 
 ```text
 conda activate cenv
 python --version
-```
-
-Confirm that the displayed Python version is 3.11 or newer, then install the
-backend dependencies into `cenv`:
-
-```text
 python -m pip install -r requirements.txt
 ```
 
-No GPU, model download, database account, or external service is required for
-this backend foundation.
+BGE-M3 is loaded lazily on CPU. OCR also requires a local Tesseract executable
+in addition to the Python `pytesseract` package.
 
-## Run the API
+## Supabase setup
 
-With `cenv` active and the current directory set to `backend`:
+1. Create a Supabase project.
+2. Run `supabase/migrations/001_initial_schema.sql` in the Supabase SQL editor
+   or through the Supabase CLI.
+3. Copy `backend/.env.example` to `backend/.env` and set
+   `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY`. The service
+   key is server-only and must never be sent to the frontend.
+4. Optionally set `SUPABASE_JWT_SECRET` for local verification of legacy HS256
+   tokens. When it is empty, the backend asks Supabase Auth to verify tokens.
+
+Registration and password login use Supabase Auth. The API returns the access
+token, and protected routes read it from `Authorization: Bearer <token>`. Chat
+and document routes require authentication. Invalid, expired, or unavailable
+authentication returns `{ "success": false, "message": "Authentication failed" }`.
+
+## Local Ollama setup
+
+Install Ollama, then pull and start the configured model:
+
+```text
+ollama pull qwen3.5:4b
+ollama serve
+```
+
+Set `OLLAMA_BASE_URL` and `OLLAMA_MODEL` in `backend/.env` when using a
+non-default endpoint or model. No OpenAI key is needed.
+
+## Run the backend
+
+From `backend` with `cenv` active:
 
 ```text
 uvicorn app.main:app --reload
 ```
 
-The API listens at `http://127.0.0.1:8000` by default. The development CORS
-configuration allows the frontend at `http://localhost:3000` and
-`http://127.0.0.1:3000`.
+The API listens at `http://127.0.0.1:8000`. FastAPI documentation is available
+at `/docs`, `/redoc`, and `/openapi.json`.
 
-## Health endpoint and API docs
+## API flow
 
-`GET /health` returns HTTP 200:
+Authentication endpoints are `POST /api/auth/register`,
+`POST /api/auth/login`, and protected `GET /api/auth/me`.
+
+Start a conversation by sending a question without an ID:
 
 ```json
+POST /api/chat
+Authorization: Bearer <access_token>
 {
-  "status": "healthy",
-  "service": "AI Knowledge Chatbot Backend"
+  "question": "What is the refund policy?",
+  "conversation_id": null
 }
 ```
 
-FastAPI automatically exposes:
+The response includes `conversation_id`. Send that ID on subsequent requests;
+the backend reads at most the last ten messages, retrieves document context,
+generates the answer, and stores both messages. Every chat request also writes
+the user, endpoint, safe question metadata, response time, and success status
+to `logs`.
 
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
-- OpenAPI schema: `http://127.0.0.1:8000/openapi.json`
+Index a supported PDF, TXT, DOCX, HTML, PNG, JPG, or JPEG with:
+
+```text
+POST /api/documents/index
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+file=<document.pdf>
+```
 
 ## Tests
 
-From the `backend` directory with `cenv` active:
+Run the suite from `backend` with `cenv` active:
 
 ```text
 pytest
 ```
 
-The test suite exercises `GET /health`, including its HTTP status and response
-body.
+The tests use deterministic fakes for model and Supabase boundaries, so they do
+not need an Ollama server or real credentials. Chroma integration tests use a
+temporary local collection when ChromaDB is installed.

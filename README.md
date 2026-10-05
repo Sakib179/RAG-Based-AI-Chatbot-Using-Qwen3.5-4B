@@ -119,13 +119,13 @@ In a separate terminal, from the project root:
 
 ```text
 cd backend
-python -m venv .venv
+conda activate cenv
+python --version
 ```
 
-Here, `python` means a Python 3.11+ interpreter. Select and activate `.venv`
-using your IDE's Python environment support or your shell's virtual environment
-support, then open a terminal using that environment. Confirm `python --version`
-reports Python 3.11 or newer before continuing:
+Confirm that `python --version` reports Python 3.11 or newer before continuing.
+The following commands install dependencies into the existing `cenv` Conda
+environment:
 
 ```text
 python -m pip install -r requirements.txt

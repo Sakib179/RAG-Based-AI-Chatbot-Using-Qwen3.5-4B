@@ -56,14 +56,16 @@ logging is enabled only when `DEBUG=True` is supplied through configuration.
 
 ## Installation
 
-From the `backend` directory, use a Python 3.11+ interpreter:
+From the `backend` directory, use your existing Conda environment with Python
+3.11 or newer:
 
 ```text
-python -m venv .venv
+conda activate cenv
+python --version
 ```
 
-Activate the virtual environment through your IDE or operating system's
-environment support, then run:
+Confirm that the displayed Python version is 3.11 or newer, then install the
+backend dependencies into `cenv`:
 
 ```text
 python -m pip install -r requirements.txt
@@ -74,7 +76,7 @@ this backend foundation.
 
 ## Run the API
 
-With the virtual environment active and the current directory set to `backend`:
+With `cenv` active and the current directory set to `backend`:
 
 ```text
 uvicorn app.main:app --reload
@@ -103,7 +105,7 @@ FastAPI automatically exposes:
 
 ## Tests
 
-From the `backend` directory with the virtual environment active:
+From the `backend` directory with `cenv` active:
 
 ```text
 pytest

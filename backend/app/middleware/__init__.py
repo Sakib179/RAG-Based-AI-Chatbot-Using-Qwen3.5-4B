@@ -1,0 +1,1 @@
+"""Application middleware registration helpers."""

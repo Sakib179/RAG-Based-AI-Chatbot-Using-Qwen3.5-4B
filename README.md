@@ -4,7 +4,8 @@
 
 AI-Knowledge-Chatbot is the foundation for a planned AI-powered knowledge
 chatbot. This step establishes the project structure, frontend tooling, and a
-minimal backend. The only application endpoint implemented is `GET /health`.
+production-oriented backend foundation. The only application endpoint
+implemented is `GET /health`.
 
 There are no frontend pages, chatbot features, AI integrations, retrieval
 pipelines, authentication, database connections, or document ingestion yet.
@@ -30,8 +31,9 @@ These integrations are documented plans, not implemented capabilities.
 | `frontend/lib/` | Future frontend utilities and client helpers |
 | `frontend/types/` | Future shared TypeScript types |
 | `frontend/public/` | Future static assets |
-| `backend/app/config/` | Future application configuration |
-| `backend/app/api/` | Future API routers |
+| `backend/app/core/` | Typed configuration and application infrastructure |
+| `backend/app/api/` | API router registration and health route |
+| `backend/app/middleware/` | Cross-cutting request and error handling |
 | `backend/app/services/` | Future application services |
 | `backend/app/models/` | Future domain and persistence models |
 | `backend/app/schemas/` | Future request and response schemas |
@@ -49,7 +51,7 @@ in Git. They contain no feature logic.
 | Layer | Technology | Current status |
 | --- | --- | --- |
 | Frontend | Next.js, React, TypeScript, App Router, Tailwind CSS, ESLint | Tooling and root layout configured; no pages |
-| Backend | FastAPI, Python 3.11+, Uvicorn | Application and health endpoint only |
+| Backend | FastAPI, Python 3.11+, Uvicorn | Configuration, logging, routing, CORS, errors, and health endpoint |
 | Local LLM | Qwen3.5-4B through Ollama | Planned; not installed or connected |
 | Embeddings | BAAI/bge-m3 | Planned; not installed or connected |
 | RAG framework | LlamaIndex | Planned; not installed or connected |
@@ -64,7 +66,7 @@ hardware; no GPU acceleration or model performance is assumed by this foundation
 ## Development roadmap
 
 1. **Foundation (this step):** establish directories, tooling, environment
-   templates, documentation, Git, and backend health endpoint.
+   templates, documentation, Git, and backend infrastructure.
 2. **Configuration and observability:** implement environment validation,
    application logging, and API conventions.
 3. **Persistence and identity:** integrate Supabase PostgreSQL and Supabase Auth.
@@ -133,7 +135,7 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 Open `http://127.0.0.1:8000/health` to receive:
 
 ```json
-{"status": "healthy"}
+{"status": "healthy", "service": "AI Knowledge Chatbot Backend"}
 ```
 
 FastAPI's generated Swagger UI is at `http://127.0.0.1:8000/docs`, ReDoc is at
@@ -143,10 +145,11 @@ Use `--reload` for development only.
 
 ### Environment templates and future setup
 
-The root `.env.example` and `backend/.env.example` contain blank placeholders
-only. Neither application reads them in this step, and no `.env` file or
-credentials are required to run the skeleton. Keep future server secrets in
-backend configuration and never expose the Supabase service key to the browser.
+The root `.env.example` and `backend/.env.example` contain templates only. The
+backend reads environment variables and an optional local `.env` file at startup;
+no `.env` file or credentials are required for the current health endpoint. Keep
+future server secrets in backend configuration and never expose the Supabase
+service key to the browser.
 
 **Placeholder:** complete local setup instructions for Supabase, Ollama, model
 downloads, ingestion, and retrieval will be added alongside those features.

@@ -1,6 +1,7 @@
 """Typed application settings loaded from environment variables."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,15 +22,20 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_key: str = ""
-    # Optional legacy HS256 secret for local JWT verification. Modern Supabase
-    # projects can leave this empty and use Supabase Auth token verification.
+    # Retained for compatibility with existing environment files. User tokens
+    # are verified by Supabase Auth, which supports current signing algorithms.
     supabase_jwt_secret: str = ""
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Resolve from the repository, independent of the shell's directory.
+        # Backend-specific values override the shared root environment file.
+        env_file=(
+            Path(__file__).resolve().parents[3] / ".env",
+            Path(__file__).resolve().parents[2] / ".env",
+        ),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

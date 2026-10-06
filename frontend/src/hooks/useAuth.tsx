@@ -30,24 +30,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     let unsubscribe: () => void = () => undefined;
 
-    try {
-      const client = getSupabaseClient();
-      client.auth.getSession().then(({ data }) => {
-        if (mounted) {
-          setUser(mapUser(data.session?.user ?? null));
-          setIsLoading(false);
-        }
-      }).catch(() => mounted && setIsLoading(false));
-
-      const subscription = client.auth.onAuthStateChange(
-        (_event: AuthChangeEvent, session: Session | null) => {
-          if (mounted) setUser(mapUser(session?.user ?? null));
-        },
-      );
-      unsubscribe = () => subscription.data.subscription.unsubscribe();
-    } catch {
-      setIsLoading(false);
-    }
+    const initialize = async () => {
+      // Finish initialization asynchronously, including configuration failures.
+      await Promise.resolve();
+      if (!mounted) return;
+      try {
+        const client = getSupabaseClient();
+        let authChanged = false;
+        const subscription = client.auth.onAuthStateChange(
+          (_event: AuthChangeEvent, session: Session | null) => {
+            authChanged = true;
+            if (mounted) {
+              setUser(mapUser(session?.user ?? null));
+              setIsLoading(false);
+            }
+          },
+        );
+        unsubscribe = () => subscription.data.subscription.unsubscribe();
+        const { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        if (mounted && !authChanged) setUser(mapUser(data.session?.user ?? null));
+      } catch {
+        if (mounted) setUser(null);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+    void initialize();
 
     return () => {
       mounted = false;

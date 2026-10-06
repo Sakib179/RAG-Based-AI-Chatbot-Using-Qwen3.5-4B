@@ -85,8 +85,8 @@ in addition to the Python `pytesseract` package.
 3. Copy `backend/.env.example` to `backend/.env` and set
    `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY`. The service
    key is server-only and must never be sent to the frontend.
-4. Optionally set `SUPABASE_JWT_SECRET` for local verification of legacy HS256
-   tokens. When it is empty, the backend asks Supabase Auth to verify tokens.
+4. `SUPABASE_JWT_SECRET` may remain empty. The backend asks Supabase Auth to
+   verify access tokens, so current Supabase signing algorithms are supported.
 
 Registration and password login use Supabase Auth. The API returns the access
 token, and protected routes read it from `Authorization: Bearer <token>`. Chat

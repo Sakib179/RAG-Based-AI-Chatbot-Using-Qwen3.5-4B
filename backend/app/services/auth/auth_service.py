@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import Any
 
-from app.core.config import settings
 from app.database.repository import create_profile, get_profile
 from app.database.supabase_client import (
     SupabaseServiceError,
@@ -39,11 +38,14 @@ def _user_from_response(user: Any) -> AuthenticatedUser:
     role = "user"
     try:
         profile = get_profile(str(user_id))
+        if profile is None:
+            # Browser sign-up bypasses /api/auth/register, so ensure that a
+            # verified Auth user has a profile before storing conversations.
+            profile = create_profile(str(user_id), email)
         if profile and profile.get("role"):
             role = str(profile["role"])
     except SupabaseServiceError:
-        # Authentication remains valid even when optional profile lookup fails.
-        pass
+        raise
     return AuthenticatedUser(id=str(user_id), email=email, role=role)
 
 
@@ -88,46 +90,24 @@ def login_user(email: str, password: str) -> tuple[AuthenticatedUser, str]:
     return _user_from_response(user), token
 
 
-def _verify_local_jwt(token: str) -> AuthenticatedUser | None:
-    """Verify legacy HS256 Supabase tokens when a JWT secret is configured."""
-
-    if not settings.supabase_jwt_secret:
-        return None
-    try:
-        import jwt
-
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
-    except Exception as exc:
-        raise AuthenticationError("Invalid Supabase JWT") from exc
-    user_id = payload.get("sub")
-    if not user_id:
-        raise AuthenticationError("Invalid Supabase JWT subject")
-    email = payload.get("email")
-    metadata = payload.get("user_metadata") or {}
-    role = str(metadata.get("role", "user")) if isinstance(metadata, dict) else "user"
-    return AuthenticatedUser(id=str(user_id), email=email, role=role)
-
-
 def verify_access_token(token: str) -> AuthenticatedUser:
-    """Verify a bearer token using JWT validation or Supabase Auth."""
+    """Verify user access tokens with Supabase Auth for all signing algorithms.
+
+    A legacy JWT secret must never force rejection of modern ES256/RS256
+    sessions. Auth checks signatures and expiry using the project's active keys.
+    """
 
     if not token:
         raise AuthenticationError("Missing bearer token")
-    local_user = _verify_local_jwt(token)
-    if local_user is not None:
-        return local_user
     try:
+        # Use the server client for token verification. The access token is
+        # still the user's token; the service key is never sent by the client.
         response = get_supabase_client().auth.get_user(token)
         user = _attr(response, "user")
         if not user:
             raise AuthenticationError("Supabase returned no authenticated user")
-        return _user_from_response(user)
     except AuthenticationError:
         raise
     except Exception as exc:
         raise AuthenticationError("Supabase token verification failed") from exc
+    return _user_from_response(user)

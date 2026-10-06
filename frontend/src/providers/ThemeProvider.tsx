@@ -1,28 +1,44 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
 
 type Theme = "light" | "dark";
 interface ThemeContextValue { theme: Theme; toggleTheme: () => void; }
 const ThemeContext = createContext<ThemeContextValue | null>(null);
+const THEME_EVENT = "knowledge-chat-theme";
+let memoryTheme: Theme = "light";
+
+function readTheme(): Theme {
+  try {
+    const stored = window.localStorage.getItem("theme");
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    // The toggle still works when browser storage is disabled.
+  }
+  return memoryTheme;
+}
+
+function subscribe(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(THEME_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(THEME_EVENT, onChange);
+  };
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const theme = useSyncExternalStore(subscribe, readTheme, () => "light" as Theme);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("theme");
-    const nextTheme: Theme = stored === "dark" ? "dark" : "light";
-    setTheme(nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
-  }, []);
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((current) => {
-      const next = current === "light" ? "dark" : "light";
-      document.documentElement.classList.toggle("dark", next === "dark");
-      window.localStorage.setItem("theme", next);
-      return next;
-    });
+    const next = theme === "light" ? "dark" : "light";
+    memoryTheme = next;
+    try { window.localStorage.setItem("theme", next); } catch { /* Use memory fallback. */ }
+    window.dispatchEvent(new Event(THEME_EVENT));
   };
 
   return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;

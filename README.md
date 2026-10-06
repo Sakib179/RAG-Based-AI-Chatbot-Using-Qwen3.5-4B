@@ -46,7 +46,7 @@ in Git. They contain no feature logic.
 
 | Layer | Technology | Current status |
 | --- | --- | --- |
-| Frontend | Next.js, React, TypeScript, App Router, Tailwind CSS, ESLint | Tooling and root layout configured; no pages |
+| Frontend | Next.js, React, TypeScript, App Router, Tailwind CSS, ESLint | Authenticated responsive chat UI with document upload |
 | Backend | FastAPI, Python 3.11+, Uvicorn | Configuration, logging, RAG services, indexing, chat, CORS, and errors |
 | Local LLM | Qwen3.5-4B through Ollama | Implemented through a lazy local adapter |
 | Embeddings | BAAI/bge-m3 | Implemented with CPU execution |
@@ -65,7 +65,7 @@ GPU acceleration is required.
    documentation, Git, and backend infrastructure.
 2. **Local RAG layer (this step):** add ingestion, OCR, embeddings, ChromaDB,
    retrieval, Ollama generation, and grounded API endpoints.
-3. **Chatbot experience:** implement frontend pages and conversation UI.
+3. **Chatbot experience:** connect the frontend chat, authentication, and document upload UI.
 4. **Production preparation:** expand API documentation, add tests for features,
    and validate deployment and operation on Windows.
 

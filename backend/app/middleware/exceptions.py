@@ -38,7 +38,8 @@ async def authentication_exception_handler(
 ) -> JSONResponse:
     """Return one safe response for missing, invalid, or expired credentials."""
 
-    logger.warning("Authentication failed for %s %s", request.method, request.url.path)
+    # AuthenticationError contains a controlled reason, never tokens or secrets.
+    logger.warning("Authentication failed for %s %s: %s", request.method, request.url.path, exc)
     return JSONResponse(
         status_code=401,
         content={"success": False, "message": "Authentication failed"},

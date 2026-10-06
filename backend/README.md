@@ -80,8 +80,22 @@ in addition to the Python `pytesseract` package.
 ## Supabase setup
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/001_initial_schema.sql` in the Supabase SQL editor
-   or through the Supabase CLI.
+2. Open Supabase Dashboard → **SQL Editor**, paste the complete contents of
+   `supabase/migrations/001_initial_schema.sql`, and click **Run**. Confirm
+   that `profiles`, `conversations`, `messages`, `logs`, and `documents` appear
+   under **Table Editor**. Alternatively, apply the migration through the
+   Supabase CLI.
+   To verify the migration from SQL Editor, run:
+
+   ```sql
+   select table_schema, table_name
+   from information_schema.tables
+   where table_schema = 'public'
+     and table_name in ('profiles', 'conversations', 'messages', 'logs', 'documents');
+   ```
+
+   If the tables exist but PostgREST still reports `PGRST205`, run
+   `notify pgrst, 'reload schema';` once in SQL Editor and restart the backend.
 3. Copy `backend/.env.example` to `backend/.env` and set
    `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY`. The service
    key is server-only and must never be sent to the frontend.

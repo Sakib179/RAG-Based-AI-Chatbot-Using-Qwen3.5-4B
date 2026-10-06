@@ -59,6 +59,20 @@ alter table public.messages enable row level security;
 alter table public.logs enable row level security;
 alter table public.documents enable row level security;
 
+-- Make this SQL editor migration safe to re-run after a partial attempt.
+drop policy if exists profiles_select_own on public.profiles;
+drop policy if exists profiles_insert_own on public.profiles;
+drop policy if exists profiles_update_own on public.profiles;
+drop policy if exists conversations_select_own on public.conversations;
+drop policy if exists conversations_insert_own on public.conversations;
+drop policy if exists conversations_update_own on public.conversations;
+drop policy if exists conversations_delete_own on public.conversations;
+drop policy if exists messages_select_own on public.messages;
+drop policy if exists messages_insert_own on public.messages;
+drop policy if exists logs_select_own on public.logs;
+drop policy if exists documents_select_own on public.documents;
+drop policy if exists documents_insert_own on public.documents;
+
 create policy profiles_select_own on public.profiles for select
     using (auth.uid() = id);
 create policy profiles_insert_own on public.profiles for insert

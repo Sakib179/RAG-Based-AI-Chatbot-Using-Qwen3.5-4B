@@ -3,7 +3,11 @@
 from typing import Any
 from uuid import UUID
 
-from app.database.supabase_client import SupabaseServiceError, get_supabase_client
+from app.database.supabase_client import (
+    SupabaseSchemaError,
+    SupabaseServiceError,
+    get_supabase_client,
+)
 
 
 class RepositoryError(SupabaseServiceError):
@@ -28,6 +32,13 @@ def _execute(operation: str, callback: Any) -> Any:
     except SupabaseServiceError:
         raise
     except Exception as exc:
+        error_text = str(exc).lower()
+        if "pgrst205" in error_text or (
+            "relation" in error_text and "does not exist" in error_text
+        ):
+            raise SupabaseSchemaError(
+                "Required Supabase tables are missing. Apply supabase/migrations/001_initial_schema.sql."
+            ) from exc
         raise RepositoryError(f"Supabase operation failed: {operation}") from exc
 
 

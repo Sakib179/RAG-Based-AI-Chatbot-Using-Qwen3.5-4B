@@ -10,6 +10,10 @@ class SupabaseServiceError(RuntimeError):
     """Raised when Supabase cannot be configured or reached."""
 
 
+class SupabaseSchemaError(SupabaseServiceError):
+    """Raised when the required public application tables are absent."""
+
+
 def _create_client(url: str, key: str) -> Any:
     """Import the optional SDK lazily so the backend can start without secrets."""
 

@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3.5:4b"
     # Concise grounded answers keep CPU generation responsive on the target
     # machine. Increase these only when a workflow genuinely needs it.
-    ollama_num_predict: int = Field(default=256, ge=64, le=8192)
-    ollama_context_window: int = Field(default=4096, ge=2048, le=32768)
+    ollama_num_predict: int = Field(default=128, ge=64, le=8192)
+    ollama_context_window: int = Field(default=3072, ge=2048, le=32768)
     ollama_thinking: bool = False
     ollama_keep_alive: str = "10m"
 

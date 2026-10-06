@@ -1,9 +1,40 @@
 """Lazy Ollama LLM configuration for LlamaIndex."""
 
 from functools import lru_cache
+from types import SimpleNamespace
 from typing import Any
 
 from app.core.config import settings
+
+
+class _FastOllamaAdapter:
+    """Small completion adapter that can explicitly disable Qwen thinking."""
+
+    def __init__(self, fallback: Any, client: Any) -> None:
+        self._fallback = fallback
+        self._client = client
+
+    def complete(self, prompt: str) -> Any:
+        try:
+            response = self._client.chat(
+                model=settings.ollama_model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=False,
+                think=False,
+                keep_alive=settings.ollama_keep_alive,
+                options={
+                    "temperature": 0.0,
+                    "num_ctx": settings.ollama_context_window,
+                    "num_predict": settings.ollama_num_predict,
+                },
+            )
+            message = response.get("message") if isinstance(response, dict) else response.message
+            content = message.get("content", "") if isinstance(message, dict) else getattr(message, "content", "")
+            return SimpleNamespace(text=str(content or ""))
+        except TypeError:
+            # Older ollama clients do not accept think/keep_alive. Their
+            # LlamaIndex adapter remains a compatible fallback.
+            return self._fallback.complete(prompt)
 
 
 @lru_cache(maxsize=1)
@@ -38,4 +69,13 @@ def get_llm() -> Any:
         ollama_kwargs["keep_alive"] = settings.ollama_keep_alive
     if "thinking" in model_fields:
         ollama_kwargs["thinking"] = settings.ollama_thinking
-    return Ollama(**ollama_kwargs)
+    fallback = Ollama(**ollama_kwargs)
+    try:
+        from ollama import Client
+
+        return _FastOllamaAdapter(
+            fallback,
+            Client(host=settings.ollama_base_url, timeout=120.0),
+        )
+    except ImportError:
+        return fallback

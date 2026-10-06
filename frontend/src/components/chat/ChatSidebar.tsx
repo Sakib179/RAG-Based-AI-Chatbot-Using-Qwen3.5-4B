@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { DocumentUpload } from "@/components/chat/DocumentUpload";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import type { Conversation } from "@/types/chat";
 
 interface ChatSidebarProps {
   desktopOpen: boolean;
@@ -15,9 +16,14 @@ interface ChatSidebarProps {
   onCloseMobile: () => void;
   onNewConversation: () => void;
   onLogout: () => void;
+  conversations: Conversation[];
+  selectedConversationId: string | null;
+  onSelectConversation: (conversation: Conversation) => void;
+  externalFile?: File | null;
+  onExternalFileHandled?: () => void;
 }
 
-export function ChatSidebar({ desktopOpen, mobileOpen, email, busy, onCloseMobile, onNewConversation, onLogout }: ChatSidebarProps) {
+export function ChatSidebar({ desktopOpen, mobileOpen, email, busy, conversations, selectedConversationId, onCloseMobile, onNewConversation, onSelectConversation, onLogout, externalFile, onExternalFileHandled }: ChatSidebarProps) {
   const [width, setWidth] = useState(288);
   const panelRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -68,9 +74,27 @@ export function ChatSidebar({ desktopOpen, mobileOpen, email, busy, onCloseMobil
         </div>
         <Button onClick={onNewConversation} disabled={busy} className="mt-8 w-full justify-start gap-2"><Plus size={17} />New conversation</Button>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <DocumentUpload />
+          <DocumentUpload externalFile={externalFile} onExternalFileHandled={onExternalFileHandled} />
           <p className="mt-8 px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Recent conversations</p>
-          <p className="px-2 pt-4 text-sm text-slate-400">Conversation history will appear here.</p>
+          {conversations.length === 0 ? (
+            <p className="px-2 pt-4 text-sm text-slate-400">No saved conversations yet.</p>
+          ) : (
+            <div className="mt-3 space-y-1">
+              {conversations.map((conversation) => (
+                <button
+                  type="button"
+                  key={conversation.id}
+                  disabled={busy}
+                  onClick={() => onSelectConversation(conversation)}
+                  title={conversation.title || "Untitled conversation"}
+                  aria-current={selectedConversationId === conversation.id ? "true" : undefined}
+                  className={`w-full truncate rounded-xl px-2 py-2 text-left text-sm disabled:cursor-wait disabled:opacity-60 ${selectedConversationId === conversation.id ? "bg-teal-50 font-semibold text-teal-700 dark:bg-teal-950/50 dark:text-teal-300" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}
+                >
+                  {conversation.title || "Untitled conversation"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
           <div className="flex items-center gap-3 px-2"><Avatar name={email} /><span className="min-w-0 flex-1 truncate text-sm">{email}</span><Button variant="ghost" onClick={onLogout} className="p-2" aria-label="Log out"><LogOut size={17} /></Button></div>

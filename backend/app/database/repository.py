@@ -1,5 +1,6 @@
 """Small, explicit repository for application data stored in Supabase."""
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
@@ -76,6 +77,20 @@ def create_conversation(user_id: UUID | str, title: str | None = None) -> dict[s
     return result
 
 
+def list_conversations(user_id: UUID | str, limit: int = 20) -> list[dict[str, Any]]:
+    """Return a user's recent conversations, newest first."""
+
+    response = _execute(
+        "list conversations",
+        lambda: get_supabase_client().table("conversations").select(
+            "id,user_id,title,created_at,updated_at"
+        ).eq("user_id", str(user_id)).order("created_at", desc=True).limit(
+            min(max(limit, 1), 100)
+        ).execute(),
+    )
+    return _rows(response)
+
+
 def _conversation_owned(conversation_id: UUID | str, user_id: UUID | str) -> bool:
     response = _execute(
         "check conversation ownership",
@@ -92,23 +107,49 @@ def save_message(
     content: str,
     sources: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    if role not in {"user", "assistant", "system"}:
-        raise ValueError("Message role must be user, assistant, or system")
-    response = _execute(
-        "save message",
-        lambda: get_supabase_client().table("messages").insert(
+    """Persist one conversation message."""
+
+    rows = save_messages(
+        conversation_id,
+        [{"role": role, "content": content, "sources": sources or []}],
+    )
+    if not rows:
+        raise RepositoryError("Supabase did not return the saved message")
+    return rows[0]
+
+
+def save_messages(
+    conversation_id: UUID | str,
+    messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Persist multiple messages in one database request."""
+
+    if not messages:
+        return []
+    payload: list[dict[str, Any]] = []
+    base_time = datetime.now(timezone.utc)
+    for message in messages:
+        role = str(message.get("role", ""))
+        if role not in {"user", "assistant", "system"}:
+            raise ValueError("Message role must be user, assistant, or system")
+        sequence = len(payload)
+        payload.append(
             {
                 "conversation_id": str(conversation_id),
                 "role": role,
-                "content": content,
-                "sources": sources or [],
+                "content": str(message.get("content", "")),
+                "sources": message.get("sources") or [],
+                "created_at": (base_time + timedelta(microseconds=sequence)).isoformat(),
             }
-        ).execute(),
+        )
+    response = _execute(
+        "save messages",
+        lambda: get_supabase_client().table("messages").insert(payload).execute(),
     )
-    result = _single(response)
-    if result is None:
-        raise RepositoryError("Supabase did not return the saved message")
-    return result
+    rows = _rows(response)
+    if len(rows) != len(payload):
+        raise RepositoryError("Supabase did not return all saved messages")
+    return rows
 
 
 def get_conversation_history(

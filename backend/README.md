@@ -148,9 +148,24 @@ Authorization: Bearer <access_token>
 
 The response includes `conversation_id`. Send that ID on subsequent requests;
 the backend reads at most the last ten messages, retrieves document context,
-generates the answer, and stores both messages. Every chat request also writes
-the user, endpoint, safe question metadata, response time, and success status
-to `logs`.
+generates the answer, and stores both messages. The response also includes
+`response_time_ms` and source excerpts so the frontend can show latency and
+open the retrieved context. Sources are grouped by filename; `pages` contains
+all matching pages, `similarity_percent` contains the strongest matching
+chunk's score, and `context` contains the combined retrieved excerpts.
+`GET /api/chat/conversations` lists the signed-in
+user’s recent chats and `GET /api/chat/conversations/{conversation_id}` loads
+one after a later login. Every chat request also writes the user, endpoint,
+safe question metadata, response time, and success status to `logs`.
+
+For lower local latency, the Ollama adapter keeps the model warm for ten
+minutes, disables optional thinking, and uses an 8192-token context window.
+Recent conversation memory is limited to 4000 characters; retrieved document
+chunks remain intact. Answers have a configurable 1024-token ceiling. Adjust
+`OLLAMA_KEEP_ALIVE`, `OLLAMA_THINKING`, `OLLAMA_CONTEXT_WINDOW`, and
+`OLLAMA_NUM_PREDICT` in `backend/.env` for the target machine. A lower output
+ceiling may cut off longer answers; enable thinking for complex reasoning
+when the additional latency is acceptable.
 
 Index a supported PDF, TXT, DOCX, HTML, PNG, JPG, or JPEG with:
 

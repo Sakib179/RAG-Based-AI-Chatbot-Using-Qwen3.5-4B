@@ -2,14 +2,24 @@
 
 import Link from "next/link";
 import { CheckCircle2, LoaderCircle, Upload } from "lucide-react";
-import { useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { SessionError } from "@/services/api";
 import { getDocumentIndexStatus, indexDocument, SUPPORTED_DOCUMENT_EXTENSIONS, type DocumentIndexResponse } from "@/services/documents";
 import { getErrorMessage } from "@/utils/errors";
 
-export function DocumentUpload() {
+interface DocumentUploadProps {
+  externalFile?: File | null;
+  onExternalFileHandled?: () => void;
+}
+
+export function isSupportedDocument(file: File): boolean {
+  const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
+  return SUPPORTED_DOCUMENT_EXTENSIONS.some((supported) => supported === extension);
+}
+
+export function DocumentUpload({ externalFile = null, onExternalFileHandled }: DocumentUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isIndexing, setIsIndexing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -18,16 +28,12 @@ export function DocumentUpload() {
   const [error, setError] = useState("");
   const [needsLogin, setNeedsLogin] = useState(false);
 
-  const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    // Selecting the same file again should fire a change event.
-    event.target.value = "";
-    if (!file || isIndexing) return;
+  const uploadFile = useCallback(async (file: File) => {
+    if (isIndexing) return;
     setError("");
     setMessage("");
     setNeedsLogin(false);
-    const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
-    if (!SUPPORTED_DOCUMENT_EXTENSIONS.some((supported) => supported === extension)) {
+    if (!isSupportedDocument(file)) {
       setError("Choose a PDF, TXT, DOCX, HTML, PNG, or JPG file.");
       return;
     }
@@ -49,7 +55,23 @@ export function DocumentUpload() {
     } finally {
       setIsIndexing(false);
     }
+  }, [isIndexing]);
+
+  const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Selecting the same file again should fire a change event.
+    event.target.value = "";
+    if (file) await uploadFile(file);
   };
+
+  useEffect(() => {
+    if (!externalFile) return;
+    const timer = window.setTimeout(() => {
+      onExternalFileHandled?.();
+      void uploadFile(externalFile);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [externalFile, onExternalFileHandled, uploadFile]);
 
   return (
     <section aria-label="Upload knowledge-base documents" className="mt-6 space-y-2">

@@ -42,6 +42,28 @@ def test_rag_uses_retrieved_context_and_returns_sources(monkeypatch: Any) -> Non
     assert "Do not use outside knowledge." in llm.prompt
 
 
+def test_rag_uses_dynamic_output_budget(monkeypatch: Any) -> None:
+    """Long-form requests receive more generation capacity than fact lookups."""
+
+    chunk = RetrievedChunk("Relevant context", {"filename": "guide.txt"}, 0.8)
+
+    class BudgetLLM:
+        def __init__(self) -> None:
+            self.budgets: list[int | None] = []
+
+        def complete(self, prompt: str, num_predict: int | None = None) -> FakeResponse:
+            self.budgets.append(num_predict)
+            return FakeResponse()
+
+    llm = BudgetLLM()
+    monkeypatch.setattr(rag_service, "retrieve_relevant_chunks", lambda _: [chunk])
+    monkeypatch.setattr(rag_service, "get_llm", lambda: llm)
+    rag_service.query_knowledge_base("When was it published?")
+    rag_service.query_knowledge_base("Explain the document in 300 words")
+
+    assert llm.budgets == [128, 450]
+
+
 def test_chat_sources_group_chunks_by_file_and_page(monkeypatch: Any) -> None:
     """One source entry contains all pages and the strongest chunk score."""
 

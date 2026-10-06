@@ -14,7 +14,7 @@ class _FastOllamaAdapter:
         self._fallback = fallback
         self._client = client
 
-    def complete(self, prompt: str) -> Any:
+    def complete(self, prompt: str, num_predict: int | None = None) -> Any:
         try:
             response = self._client.chat(
                 model=settings.ollama_model,
@@ -25,7 +25,7 @@ class _FastOllamaAdapter:
                 options={
                     "temperature": 0.0,
                     "num_ctx": settings.ollama_context_window,
-                    "num_predict": settings.ollama_num_predict,
+                    "num_predict": num_predict or settings.ollama_num_predict,
                 },
             )
             message = response.get("message") if isinstance(response, dict) else response.message

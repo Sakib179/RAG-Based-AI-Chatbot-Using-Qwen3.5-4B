@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+:root { color-scheme: light; }
+:root.dark { color-scheme: dark; }
+* { border-color: var(--color-slate-200); }
+body { min-height: 100vh; background: #f8fafc; color: #0f172a; }
+.dark body { background: #020617; color: #f8fafc; }

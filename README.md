@@ -20,12 +20,13 @@ provides identity; ChromaDB remains the vector database.
 
 | Directory | Responsibility |
 | --- | --- |
-| `frontend/app/` | App Router layout and future routes |
-| `frontend/components/` | Future reusable UI components |
-| `frontend/hooks/` | Future reusable React hooks |
-| `frontend/lib/` | Future frontend utilities and client helpers |
-| `frontend/types/` | Future shared TypeScript types |
-| `frontend/public/` | Future static assets |
+| `frontend/src/app/` | App Router auth and chat pages |
+| `frontend/src/components/` | Reusable auth, chat, and UI components |
+| `frontend/src/hooks/` | Supabase Auth state and actions |
+| `frontend/src/lib/` | Browser Supabase client |
+| `frontend/src/services/` | Axios and FastAPI service clients |
+| `frontend/src/types/` | Strict frontend API and domain types |
+| `frontend/src/providers/` | React Query and theme providers |
 | `backend/app/core/` | Typed configuration and application infrastructure |
 | `backend/app/api/` | Authentication, chat, document, and health routes |
 | `backend/app/middleware/` | Cross-cutting request and error handling |
@@ -79,18 +80,26 @@ GPU acceleration is required.
 The frontend dependency versions are recorded in `frontend/package-lock.json`.
 Backend runtime dependencies are pinned in `backend/requirements.txt`.
 
-### Frontend skeleton
+### Frontend application
 
 From the project root:
 
 ```text
 cd frontend
-npm ci
+npm install
 npm run dev
 ```
 
-The server listens at `http://localhost:3000`. No `app/page.tsx` exists, so `/`
-returns Next.js's default 404. This is expected until UI pages are implemented.
+Create `frontend/.env` from `frontend/.env.example` and set the public Supabase
+URL and anon key plus the FastAPI URL. The server listens at
+`http://localhost:3000`; `/login`, `/register`, and protected `/chat` are
+available.
+
+Authentication uses the browser Supabase client. Supabase persists and refreshes
+the session; the Axios request interceptor reads the current access token and
+sends `Authorization: Bearer <token>` to FastAPI. Chat requests go only to
+`/api/chat`; the browser never calls Ollama or ChromaDB and never receives the
+Supabase service key.
 
 Available checks and production commands:
 
@@ -147,6 +156,14 @@ and set the Supabase variables in `backend/.env` before using authentication,
 document indexing, or chat. The service key is server-only. See
 [`backend/README.md`](backend/README.md) and
 [`docs/database_schema.md`](docs/database_schema.md) for the setup and schema.
+
+The frontend only needs these public values in `frontend/.env`:
+
+```text
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
 
 Official setup references: [Next.js](https://nextjs.org/docs/app/getting-started/installation),
 [Tailwind CSS](https://tailwindcss.com/docs/installation/framework-guides/nextjs),

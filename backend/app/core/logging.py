@@ -36,4 +36,8 @@ def configure_logging() -> None:
     root_logger.setLevel(level)
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
+    # HTTP/2 header-decoding traces are extremely noisy when application
+    # DEBUG is enabled and do not help diagnose user requests.
+    for logger_name in ("httpcore", "httpx", "httpx2", "hpack", "urllib3"):
+        standard_logging.getLogger(logger_name).setLevel(standard_logging.INFO)
     setattr(root_logger, _CONFIGURED_ATTRIBUTE, True)

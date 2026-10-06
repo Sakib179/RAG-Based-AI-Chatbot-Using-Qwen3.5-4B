@@ -63,20 +63,32 @@ def _run_chat(
 ) -> tuple[RagAnswer, str]:
     """Run blocking repository and local-model operations in one worker."""
 
-    if request.conversation_id:
-        conversation_id = request.conversation_id
-        history = get_conversation_history(conversation_id, current_user.id, limit=10)
-    else:
-        conversation = create_conversation(current_user.id, request.question[:120])
-        conversation_id = str(conversation["id"])
-        history = []
+    try:
+        if request.conversation_id:
+            conversation_id = request.conversation_id
+            history = get_conversation_history(conversation_id, current_user.id, limit=10)
+        else:
+            conversation = create_conversation(current_user.id, request.question[:120])
+            conversation_id = str(conversation["id"])
+            history = []
+    except Exception:
+        logger.exception("Chat conversation lookup failed for user %s", current_user.id)
+        raise
 
-    result = query_knowledge_base(request.question, history)
+    try:
+        result = query_knowledge_base(request.question, history)
+    except Exception:
+        logger.exception("Chat retrieval or LLM generation failed for user %s", current_user.id)
+        raise
     source_payload = [
         {"file": source.file, "page": source.page} for source in _source_response(result)
     ]
-    save_message(conversation_id, "user", request.question)
-    save_message(conversation_id, "assistant", result.answer, source_payload)
+    try:
+        save_message(conversation_id, "user", request.question)
+        save_message(conversation_id, "assistant", result.answer, source_payload)
+    except Exception:
+        logger.exception("Chat message persistence failed for user %s", current_user.id)
+        raise
     return result, conversation_id
 
 
@@ -106,7 +118,7 @@ async def chat(
         logger.exception("Knowledge-base query failed for user %s", current_user.id)
         raise HTTPException(
             status_code=503,
-            detail="The knowledge-base service is unavailable.",
+            detail="Chat processing failed. Check backend logs for the failing stage.",
         ) from exc
     finally:
         try:

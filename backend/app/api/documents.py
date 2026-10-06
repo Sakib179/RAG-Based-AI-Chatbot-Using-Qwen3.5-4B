@@ -4,15 +4,13 @@ from pathlib import Path
 import logging
 import shutil
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.concurrency import run_in_threadpool
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
-from app.database.repository import create_document
 from app.services.auth.auth_dependency import get_current_user
 from app.services.auth.auth_service import AuthenticatedUser
 from app.services.ingestion.document_loader import SUPPORTED_EXTENSIONS
-from app.services.ingestion.processor import IndexResult, process_document
+from app.services.ingestion.jobs import create_index_job, get_index_job, run_index_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -20,10 +18,13 @@ KNOWLEDGE_BASE_DIRECTORY = Path(__file__).resolve().parents[3] / "knowledge_base
 
 
 class DocumentIndexResponse(BaseModel):
+    job_id: str
+    status: str
     filename: str
-    chunks_indexed: int
+    chunks_indexed: int | None = None
     source: str
     document_id: str | None = None
+    message: str | None = None
 
 
 def _safe_filename(filename: str | None) -> str:
@@ -39,10 +40,12 @@ def _safe_filename(filename: str | None) -> str:
 @router.post(
     "/index",
     response_model=DocumentIndexResponse,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Index a knowledge-base document",
     description="Store, extract, chunk, embed, and persist a supported document for the authenticated user.",
 )
 async def index_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> DocumentIndexResponse:
@@ -60,10 +63,6 @@ async def index_document(
     try:
         with destination.open("wb") as output:
             shutil.copyfileobj(file.file, output)
-        result: IndexResult = await run_in_threadpool(process_document, destination)
-        metadata = await run_in_threadpool(
-            create_document, filename, extension.lstrip("."), current_user.id
-        )
     except (ValueError, FileNotFoundError) as exc:
         destination.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -77,9 +76,36 @@ async def index_document(
     finally:
         await file.close()
 
+    job = create_index_job(current_user.id, filename, extension.lstrip("."))
+    background_tasks.add_task(run_index_job, job.id, destination)
     return DocumentIndexResponse(
+        job_id=job.id,
+        status=job.status,
         filename=filename,
-        chunks_indexed=result.chunks_indexed,
         source=filename,
-        document_id=str(metadata.get("id")) if metadata.get("id") else None,
+        message="Upload complete. Document indexing is processing in the background.",
+    )
+
+
+@router.get(
+    "/index/{job_id}",
+    response_model=DocumentIndexResponse,
+    summary="Check document indexing status",
+    description="Return the status of a background document indexing job owned by the current user.",
+)
+async def index_status(
+    job_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> DocumentIndexResponse:
+    job = get_index_job(job_id, current_user.id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Indexing job not found.")
+    return DocumentIndexResponse(
+        job_id=job.id,
+        status=job.status,
+        filename=job.filename,
+        chunks_indexed=job.chunks_indexed,
+        source=job.filename,
+        document_id=job.document_id,
+        message=job.error or ("Document indexed successfully." if job.status == "completed" else None),
     )

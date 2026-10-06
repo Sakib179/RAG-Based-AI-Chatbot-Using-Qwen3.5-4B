@@ -35,7 +35,7 @@ backend/
 │   │   │   ├── auth_dependency.py
 │   │   │   └── auth_service.py
 │   │   ├── ai/             # LLM, embeddings, prompts, RAG, retrieval
-│   │   ├── ingestion/      # Loaders, OCR, chunking, indexing
+│   │   ├── ingestion/      # Loaders, OCR, chunking, and background indexing
 │   │   └── vector/         # Persistent ChromaDB adapter
 │   └── main.py             # FastAPI application assembly
 ├── tests/
@@ -160,6 +160,12 @@ Authorization: Bearer <access_token>
 Content-Type: multipart/form-data
 file=<document.pdf>
 ```
+
+The upload endpoint returns `202 Accepted` and a `job_id` immediately. CPU-heavy
+BGE-M3 embedding continues in the background. Poll
+`GET /api/documents/index/{job_id}` with the same bearer token until the status
+is `completed` or `failed`; a completed job is searchable in the next chat
+request. Image files additionally require a local Tesseract installation.
 
 ## Tests
 

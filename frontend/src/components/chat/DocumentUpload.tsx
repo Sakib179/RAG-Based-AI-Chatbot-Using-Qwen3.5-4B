@@ -6,7 +6,7 @@ import { useRef, useState, type ChangeEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { SessionError } from "@/services/api";
-import { indexDocument, SUPPORTED_DOCUMENT_EXTENSIONS } from "@/services/documents";
+import { getDocumentIndexStatus, indexDocument, SUPPORTED_DOCUMENT_EXTENSIONS, type DocumentIndexResponse } from "@/services/documents";
 import { getErrorMessage } from "@/utils/errors";
 
 export function DocumentUpload() {
@@ -35,8 +35,14 @@ export function DocumentUpload() {
     setFilename(file.name);
     setProgress(0);
     try {
-      const result = await indexDocument(file, setProgress);
-      setMessage(`${result.filename} is ready (${result.chunks_indexed} chunks indexed).`);
+      let result: DocumentIndexResponse = await indexDocument(file, setProgress);
+      while (result.status === "pending" || result.status === "processing") {
+        setMessage(result.status === "pending" ? "Upload complete. Waiting to start indexing…" : `Processing ${file.name} on the backend…`);
+        await new Promise((resolve) => window.setTimeout(resolve, 1200));
+        result = await getDocumentIndexStatus(result.job_id);
+      }
+      if (result.status === "failed") throw new Error(result.message ?? "Document indexing failed.");
+      setMessage(`${result.filename} is ready (${result.chunks_indexed ?? 0} chunks indexed).`);
     } catch (reason) {
       setError(getErrorMessage(reason));
       setNeedsLogin(reason instanceof SessionError);
@@ -59,10 +65,10 @@ export function DocumentUpload() {
       />
       <Button variant="secondary" className="w-full justify-start gap-2" disabled={isIndexing} onClick={() => inputRef.current?.click()}>
         {isIndexing ? <LoaderCircle size={17} className="animate-spin" /> : <Upload size={17} />}
-        {isIndexing ? "Indexing document…" : "Upload document"}
+        {isIndexing ? "Processing document…" : "Upload document"}
       </Button>
       <p className="px-1 text-xs text-slate-500 dark:text-slate-400">PDF, TXT, DOCX, HTML, PNG, JPG</p>
-      {isIndexing && <p role="status" className="break-words px-1 text-xs text-slate-500 dark:text-slate-400">{progress < 100 ? `Uploading ${filename}: ${progress}%` : `Processing ${filename}… This may take a few minutes.`}</p>}
+      {isIndexing && <p role="status" className="break-words px-1 text-xs text-slate-500 dark:text-slate-400">{progress < 100 ? `Uploading ${filename}: ${progress}%` : `Processing ${filename}… You can keep using chat.`}</p>}
       {message && <p role="status" className="break-words rounded-xl bg-teal-50 p-3 text-xs text-teal-700 dark:bg-teal-950/40 dark:text-teal-300"><CheckCircle2 size={14} className="mb-1" />{message}</p>}
       {error && <div role="alert" className="break-words rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}{needsLogin && <Link href="/login" className="mt-2 block font-semibold underline">Sign in again</Link>}</div>}
     </section>

@@ -11,7 +11,8 @@ If the answer is not available in the context, say:
 Do not use outside knowledge.
 
 Give a concise, complete answer. Use Markdown headings, lists, and emphasis
-when they improve readability. Do not repeat the question."""
+when they improve readability. Do not repeat the question. Respond directly;
+do not generate a visible reasoning trace. /no_think"""
 
 FALLBACK_ANSWER = "I could not find this information in the knowledge base."
 
@@ -26,7 +27,7 @@ def build_rag_prompt(
     # Keep recent turns for follow-up questions without growing the prompt
     # indefinitely. Document context remains the only source of facts.
     recent_turns: list[str] = []
-    remaining = 4_000
+    remaining = 1_600
     for item in reversed((history or [])[-10:]):
         content = item.get("content", "")
         if not content or remaining <= 0:

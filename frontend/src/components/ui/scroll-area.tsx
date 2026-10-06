@@ -1,5 +1,9 @@
-import type { HTMLAttributes } from "react";
+import { forwardRef, type HTMLAttributes } from "react";
 
-export function ScrollArea({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={`overflow-y-auto ${className}`} {...props} />;
-}
+export const ScrollArea = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  function ScrollArea({ className = "", ...props }, ref) {
+    return <div ref={ref} className={`overflow-y-auto ${className}`} {...props} />;
+  },
+);
+
+ScrollArea.displayName = "ScrollArea";

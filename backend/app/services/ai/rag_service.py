@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 import logging
+from time import perf_counter
 from typing import Any
 
 from app.services.ai.llm_service import get_llm
@@ -39,12 +40,20 @@ def query_knowledge_base(
 ) -> RagAnswer:
     """Retrieve grounded context and ask Qwen only when context is available."""
 
+    retrieval_started = perf_counter()
     chunks = retrieve_relevant_chunks(question)
+    logger.info(
+        "RAG retrieval completed in %.2fs (%d chunks)",
+        perf_counter() - retrieval_started,
+        len(chunks),
+    )
     if not chunks:
         return RagAnswer(answer=FALLBACK_ANSWER)
 
     prompt = build_rag_prompt(question.strip(), _format_context(chunks), history)
+    generation_started = perf_counter()
     response = get_llm().complete(prompt)
+    logger.info("Ollama generation completed in %.2fs", perf_counter() - generation_started)
     answer = _response_text(response)
     if not answer:
         logger.warning("The local LLM returned an empty answer")

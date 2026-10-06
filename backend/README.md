@@ -159,9 +159,9 @@ one after a later login. Every chat request also writes the user, endpoint,
 safe question metadata, response time, and success status to `logs`.
 
 For lower local latency, the Ollama adapter keeps the model warm for ten
-minutes, disables optional thinking, and uses an 8192-token context window.
-Recent conversation memory is limited to 4000 characters; retrieved document
-chunks remain intact. Answers have a configurable 1024-token ceiling. Adjust
+minutes, disables optional thinking, and uses a 4096-token context window.
+Recent conversation memory is limited to 1600 characters; retrieved document
+chunks remain intact. Answers have a configurable 256-token ceiling. Adjust
 `OLLAMA_KEEP_ALIVE`, `OLLAMA_THINKING`, `OLLAMA_CONTEXT_WINDOW`, and
 `OLLAMA_NUM_PREDICT` in `backend/.env` for the target machine. A lower output
 ceiling may cut off longer answers; enable thinking for complex reasoning

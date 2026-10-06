@@ -11,6 +11,10 @@ export function SourceReference({ source }: { source: SourceReferenceType }) {
   const pageLabel = pages.length ? ` · page${pages.length > 1 ? "s" : ""} ${pages.join(", ")}` : "";
   const similarityLabel = source.similarity_percent == null ? "" : ` · ${source.similarity_percent}% match`;
   const label = `${source.file}${pageLabel}${similarityLabel}`;
+  const formattedContext = (source.context ?? "")
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\s*\n\s*/g, " ").trim())
+    .filter(Boolean);
   return (
     <>
       <button
@@ -41,7 +45,9 @@ export function SourceReference({ source }: { source: SourceReferenceType }) {
           </button>
         </header>
         <div className="max-h-[60dvh] overflow-y-auto p-5 text-sm leading-7 text-slate-700 dark:text-slate-200">
-          <p className="whitespace-pre-wrap break-words rounded-lg border-l-4 border-amber-400 bg-yellow-100 px-4 py-3 text-slate-800 dark:border-amber-500 dark:bg-yellow-950/40 dark:text-yellow-100">{source.context}</p>
+          <div className="space-y-4 rounded-lg border-l-4 border-amber-400 bg-yellow-100 px-4 py-3 text-slate-800 dark:border-amber-500 dark:bg-yellow-950/40 dark:text-yellow-100">
+            {formattedContext.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+          </div>
           <p className="mt-3 text-xs text-slate-500">This is the retrieved excerpt supplied to the assistant for this answer.</p>
         </div>
       </dialog>

@@ -100,10 +100,21 @@ function ChatPageContent() {
     setDroppedFile(file);
   };
 
+  useEffect(() => {
+    if (!isDragActive) return;
+    const clearDragState = () => setIsDragActive(false);
+    window.addEventListener("dragend", clearDragState);
+    window.addEventListener("drop", clearDragState);
+    return () => {
+      window.removeEventListener("dragend", clearDragState);
+      window.removeEventListener("drop", clearDragState);
+    };
+  }, [isDragActive]);
+
   return (
     <div className="flex h-dvh overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <ChatSidebar desktopOpen={desktopSidebarOpen} mobileOpen={mobileSidebarOpen} email={user?.email} busy={isLoading} conversations={conversations} selectedConversationId={conversationId} onCloseMobile={closeMobileSidebar} onNewConversation={newConversation} onSelectConversation={selectConversation} onLogout={handleLogout} externalFile={droppedFile} onExternalFileHandled={() => setDroppedFile(null)} />
-      <main className="relative flex min-w-0 flex-1 flex-col" onDragEnter={(event) => { event.preventDefault(); setIsDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (event.currentTarget === event.target) setIsDragActive(false); }} onDrop={handleDrop}>
+      <main className="relative flex min-w-0 flex-1 flex-col" onDragEnter={(event) => { event.preventDefault(); setIsDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setIsDragActive(false)} onDrop={handleDrop}>
         {isDragActive && <div className="pointer-events-none absolute inset-3 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-teal-500 bg-teal-50/90 text-sm font-semibold text-teal-800 dark:bg-teal-950/90 dark:text-teal-200">Drop a document to add it to the knowledge base</div>}
         <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
